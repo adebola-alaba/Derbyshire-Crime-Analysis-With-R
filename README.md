@@ -14,6 +14,48 @@ The provided dataset includes data on the number of criminal incidents that have
 ## EDA
 
 
+<p align="center">
+Figure 1: Total Population by City
+ </p>
+ 
+<p align="center">
+ <img src="https://github.com/siraug/Derbyshire-Crime-Analysis-With-R/assets/122705182/d941e0fa-bc4b-4c0c-9873-ea11526f0792" alt="Total Population by City">
+</p>
+
+
+<p align="center">
+Figure 2: Total Crime by City
+ </p>
+ 
+<p align="center">
+<img src="https://github.com/siraug/Derbyshire-Crime-Analysis-With-R/assets/122705182/823e5e9d-e720-4ea2-b83b-24d651c78438" alt="Total Crime by City">
+</p>
+
+
+<p align="center">
+Figure 2: Map Plot of Population Density
+ </p>
+
+<p align="center">
+<img src="https://github.com/siraug/Derbyshire-Crime-Analysis-With-R/assets/122705182/dfa8714d-84a4-4e3f-bb88-d7955905770b" alt="Map Plot of Population Density">
+</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Linear Regression
 ### Summary Statistics - Normality Distribution
@@ -84,8 +126,9 @@ Figure 4: Correlation Heatmap of Residuals
 </p>
 
 <p align="center">
-  <img src="https://github.com/siraug/Derbyshire-Crime-Analysis-With-R/assets/122705182/2ab95509-8163-4671-bbf0-f31a2838b00e" alt="Correlation Heatmap of Residuals>
+  <img src="https://github.com/siraug/Derbyshire-Crime-Analysis-With-R/assets/122705182/2ab95509-8163-4671-bbf0-f31a2838b00e" alt="Correlation Heatmap of Residuals">
 </p>
+
 
 #### Hierarchical Clustering:
 A dendrogram is a diagram that shows the outcomes of hierarchical clustering. It helps sort related objects into clusters based on their similarity. The relationships between the clusters are shown graphically in the dendrogram. In Figure 5, the data is in 3 clusters colored red, green, and blue.
