@@ -48,3 +48,7 @@ The positive slope coefficient (β1) for each crime type shows a correlation bet
 | Public order	| -2.5385	| 1.1412	| 0.7997	| 0.794 |
 | Theft from the Person	| -3.1370	| 1.0746	| 0.8566	| 0.8564 |
 
+
+- Linearity: Linear regression assumes a linear relationship between the dependent and independent variables. If the relationship is nonlinear, using a linear regression model may produce unreliable results. For the models, the assumption of linearity holds.
+
+
