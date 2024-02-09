@@ -133,7 +133,7 @@ Figure 4: Correlation Heatmap of Residuals
 #### Hierarchical Clustering:
 A dendrogram is a diagram that shows the outcomes of hierarchical clustering. It helps sort related objects into clusters based on their similarity. The relationships between the clusters are shown graphically in the dendrogram. In Figure 5, the data is in 3 clusters colored red, green, and blue.
 
-XXXXXXXXXXX
+
    
 <p align="center">
  Figure 5: Cluster Dendogram
