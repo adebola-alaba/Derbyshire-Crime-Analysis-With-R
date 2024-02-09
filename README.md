@@ -88,24 +88,6 @@ Figure 2: Density Plot of the Log Transformed Crime Data
 ### Model Results
 The positive slope coefficient (β1) for each crime type shows a correlation between population and crimes. The intercept for each model is negative, indicating that crime rates remain lower than the area's normal rate even with zero population. The models fit the data well with R-squared values ranging from 0.5972 to 0.8772, accounting for 59.72% to 87.72% of the variation in dependent variables.
 
-
-| Crimes | β0 | β1 |Multiple R-squared | Adjusted R-squared |
-| :--- |:---: |:---: |:---: |:---: |
-| Anti- Social Behavior | -1.8251	 | 1.1483	 | 0.8271	 | 0.8269 |
-| Burglary | -2.3017	| 1.0029	| 0.828	| 0.8278 |
-| Robbery	| -3.1896	| 1.1490	| 0.8774	| 0.8772 |
-| Vehicle crimes	| -2.3595	| 1.0246	| 0.8403	| 0.84 |
-| Violent crimes	| -1.8708	| 1.1862	| 0.8532	| 0.853 |
-| Shoplifting	| -2.9528	| 1.1448	| 0.5978	| 0.5972 |
-| Criminal.Damage...Arson	| -2.3063	| 1.1246	| 0.8322	| 0.832 |
-| Other theft	| -2.3096	| 1.0034	| 0.7592	| 0.7588 |
-| Drugs	| -2.8459	| 1.0081	| 0.7824	| 0.782 |
-| Other Crimes	| -3.159	| 1.144	| 0.8501	| 0.8499 |
-| Bike theft	| -2.8323	| 1.0755	| 0.8301	| 0.8299 |
-| Possession of Weapons	| -3.0845	| 1.0959	| 0.8685	| 0.8683 |
-| Public order	| -2.5385	| 1.1412	| 0.7997	| 0.794 |
-| Theft from the Person	| -3.1370	| 1.0746	| 0.8566	| 0.8564 |
-
 #### Linearity: 
 Linear regression assumes a linear relationship between the dependent and independent variables. If the relationship is nonlinear, using a linear regression model may produce unreliable results. For the models, the assumption of linearity holds.
 
