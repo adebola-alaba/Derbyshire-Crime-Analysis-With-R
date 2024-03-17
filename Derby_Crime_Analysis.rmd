@@ -1,0 +1,2229 @@
+---
+title: "Derbyshire Crime Analysis"
+author: "https://github.com/siraug"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# **Part 1 – Understand the Data Set and Descriptive Visualisation**
+
+## **Library Import**
+
+```{r Import Libraries, message=FALSE, warning=FALSE, paged.print=FALSE}
+library(ggplot2) #EDA plot
+library(ggpubr) #ggplot customization
+library(treemap) #treemap plot
+library(corrplot) #Correlation Matrix Plot
+library(dplyr) #Data manipulation
+library(tidyverse) #Data Interaction
+library(rmarkdown) #Knitting report to Word/pdf
+library(e1071) #Skewness Check
+library(gridExtra) #to combine ggplots
+library(factoextra)#to view clusters
+library(NbClust) #for clustering
+library(reshape2)
+library(psych)#to describe the dataset
+library(tmaptools)#to create tmaps using shapefiles
+library(tmap)
+library(broom)
+library(graphics)
+library(gplots)
+```
+
+
+## **Dataset Import**
+
+```{r Import Dataset}
+
+#Import dataset
+crimedataframe <- read.csv('DerbyCrimeData.csv')
+
+#Check the first 6 rows of the data frame
+head(crimedataframe)
+
+#Check the dimension of the data frame
+sprintf("Dataset size: [%s]", toString(dim(crimedataframe)))
+
+```
+
+The crime  data set has 642 observations of 18 variables.\ 
+
+
+## **Check the Data Structure**
+
+```{r Data Structure}
+
+#Check the Crime data structure
+
+str(crimedataframe)
+```
+
+
+## **Check for Null values**
+
+```{r Check for Null Values, warning=FALSE}
+
+#Check if the data has null variables
+is.null(crimedataframe)
+
+```
+The data has no null value.
+
+
+Upon investigation, the Name column has the city as well as city_codes. The following steps will be taken:\
+- Separate the location from the area codes.\
+- Re-position the City and City.Code columns\
+- Clean the Name Column\
+- Rename the Name Column to City\
+- Add a new column that calculates the total number of crime per LSOA\
+
+
+## **DESCRIPTIVE SUMMARY**
+
+
+```{r Summary Statistics}
+
+summary(crimedataframe)
+
+```
+
+
+## **Describing Data frame**
+
+```{r Describing Crime Dataframe}
+
+describe (crimedataframe)
+
+```
+
+
+
+
+# **DATA PREPROCESSING**
+
+
+
+## **Splitting Name Column City.Code**
+
+```{r Creating City Code Column}
+#area code column
+crimedataframe <- crimedataframe %>%
+  mutate(city.code = substr(Name, nchar(Name)-3, nchar(Name)))
+
+crimedataframe
+```
+
+The area_code was successfully duplicated to a new column called area_code. There are 19 columns in the crime data frame  now 
+
+
+## **Re-position the City.Code Column**
+
+```{r Re-position the city.code column}
+# Re-position the city.code column
+crimedataframe <- crimedataframe %>% 
+              relocate(city.code, .before= Population)
+
+crimedataframe
+
+```
+
+The area code has successfully been extracted. Next i will clean the Name column by removing the area code so it shows only the cities.
+
+
+## **Clean the Name Column**
+
+```{r Cleaning the Name column}
+# Cleaning the Name column
+crimedataframe$Name <- substr(crimedataframe$Name, 1, nchar(crimedataframe$Name)-5)
+
+crimedataframe
+```
+
+Next, i will change the Name variable to "City" as this represents the items contained in the column
+
+## **Rename the Name Column to City**
+
+```{r Changing Name column}
+#Changing Name column 
+colnames(crimedataframe)[2]="City"
+
+crimedataframe
+```
+
+
+## **Creating Total Crime Column**
+```{r Creating Total Crime Column}
+crimedataframe$Total.Crime <- rowSums(crimedataframe[,c("Anti.Social.Behaviour", "Burglary","Robbery","Vehicle.Crimes","Violent.Crimes","Shoplifting","Other.Theft","Drugs","Other.Crimes","Bike.Theft","Possession.of.Weapons","Public.Order","Theft.From.the.Person","Criminal.Damage...Arson")])
+
+crimedataframe
+```
+
+# **Check the Data Structure**
+
+```{r Data Structure}
+
+#Check the Crime data structure
+
+str(crimedataframe)
+```
+
+The crime data frame has been cleaned and now I will perform exploratory data analysis with the data
+
+
+# **Log Transform crime data**
+
+
+```{r Log Transform crime data}
+
+Log_crimedataframe <- data.frame(
+                            log10(crimedataframe$Population/crimedataframe$Land.Area.in.Hectares),
+                            log10(crimedataframe$Anti.Social.Behaviour/crimedataframe$Land.Area.in.Hectares),
+                            log10(crimedataframe$Burglary/crimedataframe$Land.Area.in.Hectares),
+                            log10(crimedataframe$Robbery/crimedataframe$Land.Area.in.Hectares),
+                            log10(crimedataframe$Vehicle.Crimes/crimedataframe$Land.Area.in.Hectares),
+                            log10(crimedataframe$Violent.Crimes/crimedataframe$Land.Area.in.Hectares), 
+                            log10(crimedataframe$Shoplifting/crimedataframe$Land.Area.in.Hectares),
+                            log10(crimedataframe$Criminal.Damage...Arson/crimedataframe$Land.Area.in.Hectares), 
+                            log10(crimedataframe$Other.Theft/crimedataframe$Land.Area.in.Hectares),
+                            log10(crimedataframe$Drugs/crimedataframe$Land.Area.in.Hectares), 
+                            log10(crimedataframe$Other.Crimes/crimedataframe$Land.Area.in.Hectares),
+                            log10(crimedataframe$Bike.Theft/crimedataframe$Land.Area.in.Hectares),
+                            log10(crimedataframe$Possession.of.Weapons/crimedataframe$Land.Area.in.Hectares),
+                            log10(crimedataframe$Public.Order/crimedataframe$Land.Area.in.Hectares),
+                            log10(crimedataframe$Theft.From.the.Person/crimedataframe$Land.Area.in.Hectares)
+                            )
+
+colnames(Log_crimedataframe)<-c(
+                              "Population",
+                              "Anti.Social.Behaviour",
+                              "Burglary",
+                              "Robbery",
+                              "Vehicle.Crimes",
+                              "Violent.Crimes",
+                              "Shoplifting",
+                              "Criminal.Damage...Arson",
+                              "Other.Theft",
+                              "Drugs",
+                              "Bike.Theft",
+                              "Other.Crimes",
+                              "Possession.of.Weapons",
+                              "Public.Order",
+                              "Theft.From.the.Person"
+                            )
+
+Log_crimedataframe
+
+
+#Transform the log crime data to a long format
+
+Log_crimedataframe_long <- gather(Log_crimedataframe, key = "crime_type", value = "Log10_Value")
+
+Log_crimedataframe_long
+
+
+```
+
+## **Describing Log10 Dataframe**
+```{r Describing Log10 Dataframe}
+
+describe (Log_crimedataframe)
+
+```
+
+
+
+# **Boxplot of Crime Data**
+
+```{r Boxplot of Crime Data}
+# Create the boxplot
+
+crimeboxplot <- gather(crimedataframe[-c(1,2,3,4,5,20)], key = "crime_type", value = "Value")
+crimeboxplot
+
+
+ggplot(
+        crimeboxplot , aes(x = crime_type, y = Value)) + 
+        geom_boxplot() +
+        labs(title = "Boxplot Of Crime Categories", x="Crime Categories", y = "Value") +
+        theme(axis.text.x = element_text(angle = 90,hjust=1)
+      )
+```
+
+
+
+
+# **Boxplot of Log10 Crime Data**
+
+```{r Boxplot of Log10 Crime Data}
+# Create the boxplot
+
+log_crimedataboxplot <- gather(Log_crimedataframe[-c(1)], key = "crime_type", value = "Log10_Value")
+log_crimedataboxplot
+
+
+ggplot(
+        log_crimedataboxplot , aes(x = crime_type, y = Log10_Value)) + 
+        geom_boxplot() +
+        labs(title = "Boxplot Of Log10 Crime Categories", x="Log10 Crime Categories", y = "Log10_Value") +
+        theme(axis.text.x = element_text(angle = 90,hjust=1)
+      )
+```
+
+
+
+
+
+
+
+
+# **Histogram of Crime Categories**
+
+```{r Histogram of Crime Categories}
+par(mfrow = c(2, 7))
+
+hist(crimedataframe$Anti.Social.Behaviour, main = "Anti-Social Behaviour", xlab = "(Anti-Social)", ylab = "(frequency)")
+hist(crimedataframe$Burglary, main = "Burglary", xlab = "(Burglary)", ylab = "(frequency)")
+hist(crimedataframe$Robbery, main = "Robbery", xlab = "(Robbery)", ylab = "(frequency)")
+hist(crimedataframe$Vehicle.Crimes, main = "Vehicle.Crimes", xlab = "(Vehicle Crimes)", ylab = "(frequency)")
+hist(crimedataframe$Violent.Crimes, main = "Violent.Crimes", xlab = "(Violent Crimes)", ylab = "(frequency)")
+hist(crimedataframe$Shoplifting, main = "Shoplifting", xlab = "(Shoplifting)", ylab = "(frequency)")
+hist(crimedataframe$Criminal.Damage...Arson, main = "Criminal.Damage...Arson", xlab = "(Criminal Damage)", ylab = "(frequency)")
+hist(crimedataframe$Other.Theft, main = "Other.Theft", xlab = "(Other theft)", ylab = "(frequency)")
+hist(crimedataframe$Drugs, main = "Drugs", xlab = "(Drugs)", ylab = "(frequency)")
+hist(crimedataframe$Other.Crimes, main = "Other.Crimes", xlab = "(Other Crimes)", ylab = "(frequency)")
+hist(crimedataframe$Bike.Theft, main = "Bike.Theft", xlab = "(Bike Theft)", ylab = "(frequency)")
+hist(crimedataframe$Possession.of.Weapons, main = "Possession.of.Weapons", xlab = "(Pos of Weapon)", ylab = "(frequency)")
+hist(crimedataframe$Public.Order, main = "Public.Order", xlab = "(Public Order)", ylab = "(frequency)")
+hist(crimedataframe$Theft.From.the.Person, main = "Theft", xlab = "(Theft)", ylab = "(frequency)")
+
+```
+
+
+
+
+
+
+# **Histogram of Log10 Crime Categories**
+
+```{r Histogram of Log10 Crime Categories}
+par(mfrow = c(2, 7))
+
+hist(Log_crimedataframe$Anti.Social.Behaviour, main = "Anti-Social Behaviour", xlab = "log10(Anti-Social)", ylab = "log10(frequency)")
+hist(Log_crimedataframe$Burglary, main = "Burglary", xlab = "log10(Burglary)", ylab = "log10(frequency)")
+hist(Log_crimedataframe$Robbery, main = "Robbery", xlab = "log10(Robbery)", ylab = "log10(frequency)")
+hist(Log_crimedataframe$Vehicle.Crimes, main = "Vehicle.Crimes", xlab = "log10(Vehicle Crimes)", ylab = "log10(frequency)")
+hist(Log_crimedataframe$Violent.Crimes, main = "Violent.Crimes", xlab = "log10(Violent Crimes)", ylab = "log10(frequency)")
+hist(Log_crimedataframe$Shoplifting, main = "Shoplifting", xlab = "log10(Shoplifting)", ylab = "log10(frequency)")
+hist(Log_crimedataframe$Criminal.Damage...Arson, main = "Criminal.Damage...Arson", xlab = "log10(Criminal Damage)", ylab = "log10(frequency)")
+hist(Log_crimedataframe$Other.Theft, main = "Other.Theft", xlab = "log10(Other theft)", ylab = "log10(frequency)")
+hist(Log_crimedataframe$Drugs, main = "Drugs", xlab = "log10(Drugs)", ylab = "log10(frequency)")
+hist(Log_crimedataframe$Other.Crimes, main = "Other.Crimes", xlab = "log10(Other Crimes)", ylab = "log10(frequency)")
+hist(Log_crimedataframe$Bike.Theft, main = "Bike.Theft", xlab = "log10(Bike Theft)", ylab = "log10(frequency)")
+hist(Log_crimedataframe$Possession.of.Weapons, main = "Possession.of.Weapons", xlab = "log10(Pos of Weapon)", ylab = "log10(frequency)")
+hist(Log_crimedataframe$Public.Order, main = "Public.Order", xlab = "log10(Public Order)", ylab = "log10(frequency)")
+hist(Log_crimedataframe$Theft.From.the.Person, main = "Theft", xlab = "log10(Theft)", ylab = "log10(frequency)")
+
+```
+
+
+# **Density Plot of Crime Data**
+
+```{r # **Density Plot of Crime Data**}
+
+# Histogram with density plot
+ahist1 <- ggplot(crimedataframe, aes(x=Anti.Social.Behaviour)) + 
+          #geom_aahistogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Anti.Social.Behaviour)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Anti.Social.Behaviour") + ylab("Density")
+
+ahist2 <- ggplot(crimedataframe, aes(x=Burglary)) + 
+          #geom_aahistogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Burglary)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Burglary") + ylab(" ")
+
+ahist3 <- ggplot(crimedataframe, aes(x=Robbery)) + 
+          #geom_ahistogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Robbery)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Robbery") + ylab(" ")
+
+ahist4 <- ggplot(crimedataframe, aes(x=Vehicle.Crimes)) + 
+          #geom_ahistogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Vehicle.Crimes)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Vehicle.Crimes") + ylab(" ")
+
+ahist5 <- ggplot(crimedataframe, aes(x=Violent.Crimes)) + 
+          #geom_ahistogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Violent.Crimes)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Violent.Crimes") + ylab(" ")
+
+ahist6 <- ggplot(crimedataframe, aes(x=Shoplifting)) + 
+          #geom_ahistogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Shoplifting)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Shoplifting") + ylab("Density")
+
+ahist7 <- ggplot(crimedataframe, aes(x=Criminal.Damage...Arson)) + 
+          #geom_ahistogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Criminal.Damage...Arson)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Criminal.Damage...Arson") + ylab(" ")
+
+ahist8 <- ggplot(crimedataframe, aes(x=Other.Theft)) + 
+         #geom_ahistogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Other.Theft)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Other.Theft") + ylab(" ")
+
+ahist9 <- ggplot(crimedataframe, aes(x=Drugs)) + 
+          #geom_ahistogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Drugs)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Drugs") + ylab(" ")
+
+ahist10 <- ggplot(crimedataframe, aes(x=Other.Crimes)) + 
+            #geom_ahistogram(aes(y=..density..), colour="black", fill="white")+
+            geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+            geom_vline(aes(xintercept=mean(Other.Crimes)), #shows mean line
+            color="red", linetype="dashed", linewidth=1)+
+          xlab("Other.Crimes") + ylab(" ")
+
+ahist11 <- ggplot(crimedataframe, aes(x=Bike.Theft)) + 
+            #geom_ahistogram(aes(y=..density..), colour="black", fill="white")+
+            geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+            geom_vline(aes(xintercept=mean(Bike.Theft)), #shows mean line
+            color="red", linetype="dashed", linewidth=1)+
+          xlab("Bike.Theft") + ylab("Density")
+
+ahist12 <- ggplot(crimedataframe, aes(x=Possession.of.Weapons)) + 
+            #geom_ahistogram(aes(y=..density..), colour="black", fill="white")+
+            geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+            geom_vline(aes(xintercept=mean(Possession.of.Weapons)), #shows mean line
+            color="red", linetype="dashed", linewidth=1)+
+          xlab("Possession.of.Weapons") + ylab(" ")
+
+ahist13 <- ggplot(crimedataframe, aes(x=Public.Order)) + 
+            #geom_ahistogram(aes(y=..density..), colour="black", fill="white")+
+            geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+            geom_vline(aes(xintercept=mean(Public.Order)), #shows mean line
+            color="red", linetype="dashed", linewidth=1)+
+          xlab("Public.Order") + ylab(" ")
+
+ahist14 <- ggplot(crimedataframe, aes(x=Theft.From.the.Person)) + 
+            #geom_ahistogram(aes(y=..density..), colour="black", fill="white")+
+            geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+            geom_vline(aes(xintercept=mean(Theft.From.the.Person)), #shows mean line
+            color="red", linetype="dashed", linewidth=1)+
+          xlab("Theft.From.the.Person") + ylab(" ")
+
+
+grid.arrange(ahist1, ahist2, ahist3, ahist4,ahist5,ahist6,ahist7,ahist8,ahist9,ahist10,ahist11,ahist12,ahist13,ahist14, nrow = 3, ncol=5)
+
+```
+
+
+
+
+
+
+# **Density Plot of Log10 Crime Data**
+
+```{r Density Plot of Log10 Crime Data}
+
+Hist1 <- ggplot(Log_crimedataframe, aes(x=Anti.Social.Behaviour)) + 
+          #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Anti.Social.Behaviour)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Anti.Social.Behaviour") + ylab("Density")
+
+Hist2 <- ggplot(Log_crimedataframe, aes(x=Burglary)) + 
+          #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Burglary)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Burglary") + ylab(" ")
+
+Hist3 <- ggplot(Log_crimedataframe, aes(x=Robbery)) + 
+          #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Robbery)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Robbery") + ylab(" ")
+
+Hist4 <- ggplot(Log_crimedataframe, aes(x=Vehicle.Crimes)) + 
+          #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Vehicle.Crimes)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Vehicle.Crimes") + ylab(" ")
+
+Hist5 <- ggplot(Log_crimedataframe, aes(x=Violent.Crimes)) + 
+          #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Violent.Crimes)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Violent.Crimes") + ylab(" ")
+
+Hist6 <- ggplot(Log_crimedataframe, aes(x=Shoplifting)) + 
+          #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Shoplifting)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Shoplifting") + ylab("Density")
+
+Hist7 <- ggplot(Log_crimedataframe, aes(x=Criminal.Damage...Arson)) + 
+          #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Criminal.Damage...Arson)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Criminal.Damage...Arson") + ylab(" ")
+
+Hist8 <- ggplot(Log_crimedataframe, aes(x=Other.Theft)) + 
+         #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Other.Theft)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Other.Theft") + ylab(" ")
+
+Hist9 <- ggplot(Log_crimedataframe, aes(x=Drugs)) + 
+          #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+          geom_vline(aes(xintercept=mean(Drugs)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          xlab("Drugs") + ylab(" ")
+
+Hist10 <- ggplot(Log_crimedataframe, aes(x=Other.Crimes)) + 
+            #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+            geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+            geom_vline(aes(xintercept=mean(Other.Crimes)), #shows mean line
+            color="red", linetype="dashed", linewidth=1)+
+          xlab("Other.Crimes") + ylab(" ")
+
+Hist11 <- ggplot(Log_crimedataframe, aes(x=Bike.Theft)) + 
+            #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+            geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+            geom_vline(aes(xintercept=mean(Bike.Theft)), #shows mean line
+            color="red", linetype="dashed", linewidth=1)+
+          xlab("Bike.Theft") + ylab("Density")
+
+Hist12 <- ggplot(Log_crimedataframe, aes(x=Possession.of.Weapons)) + 
+            #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+            geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+            geom_vline(aes(xintercept=mean(Possession.of.Weapons)), #shows mean line
+            color="red", linetype="dashed", linewidth=1)+
+          xlab("Possession.of.Weapons") + ylab(" ")
+
+Hist13 <- ggplot(Log_crimedataframe, aes(x=Public.Order)) + 
+            #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+            geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+            geom_vline(aes(xintercept=mean(Public.Order)), #shows mean line
+            color="red", linetype="dashed", linewidth=1)+
+          xlab("Public.Order") + ylab(" ")
+
+Hist14 <- ggplot(Log_crimedataframe, aes(x=Theft.From.the.Person)) + 
+            #geom_histogram(aes(y=..density..), colour="black", fill="white")+
+            geom_density(alpha=.2, fill="#d95f02") + #shows density curve
+            geom_vline(aes(xintercept=mean(Theft.From.the.Person)), #shows mean line
+            color="red", linetype="dashed", linewidth=1)+
+          xlab("Theft.From.the.Person") + ylab(" ")
+
+
+grid.arrange(Hist1, Hist2, Hist3, Hist4,Hist5,Hist6,Hist7,Hist8,Hist9,Hist10,Hist11,Hist12,Hist13,Hist14, nrow = 3, ncol=5)
+
+```
+
+
+
+
+
+
+
+
+
+# **Part 2 – Explore Relationships in the data set**\
+
+## **Part 2A - Linear Regression**\
+
+```{r Linear Model}
+# Fit a Linear Model
+Lmodel_1 <- lm(Anti.Social.Behaviour ~ Population, data = Log_crimedataframe)
+Lmodel_2 <- lm(Burglary ~ Population, data = Log_crimedataframe)
+Lmodel_3 <- lm(Robbery ~ Population, data = Log_crimedataframe)
+Lmodel_4 <- lm(Vehicle.Crimes ~ Population, data = Log_crimedataframe)
+Lmodel_5 <- lm(Violent.Crimes ~ Population, data = Log_crimedataframe)
+Lmodel_6 <- lm(Shoplifting ~ Population, data = Log_crimedataframe)
+Lmodel_7 <- lm(Criminal.Damage...Arson ~ Population, data = Log_crimedataframe)
+Lmodel_8 <- lm(Other.Theft ~ Population, data = Log_crimedataframe)
+Lmodel_9 <- lm(Drugs ~ Population, data = Log_crimedataframe)
+Lmodel_10 <- lm(Other.Crimes ~ Population, data = Log_crimedataframe)
+Lmodel_11 <- lm(Bike.Theft ~ Population, data = Log_crimedataframe)
+Lmodel_12 <- lm(Possession.of.Weapons ~ Population, data = Log_crimedataframe)
+Lmodel_13 <- lm(Public.Order ~ Population, data = Log_crimedataframe)
+Lmodel_14 <- lm(Theft.From.the.Person ~ Population, data = Log_crimedataframe)
+
+
+# Display the summary of each model
+summary(Lmodel_1)
+summary(Lmodel_2)
+summary(Lmodel_3)
+summary(Lmodel_4)
+summary(Lmodel_5)
+summary(Lmodel_6)
+summary(Lmodel_7)
+summary(Lmodel_8)
+summary(Lmodel_9)
+summary(Lmodel_10)
+summary(Lmodel_11)
+summary(Lmodel_12)
+summary(Lmodel_13)
+summary(Lmodel_14)
+
+```
+
+
+#**Model Summary**
+
+```{r}
+# extract the summary of each model as a data frame
+summaries <- list(
+  tidy(Lmodel_1),
+  tidy(Lmodel_2),
+  tidy(Lmodel_3),
+  tidy(Lmodel_4),
+  tidy(Lmodel_5),
+  tidy(Lmodel_6),
+  tidy(Lmodel_7),
+  tidy(Lmodel_8),
+  tidy(Lmodel_9),
+  tidy(Lmodel_10),
+  tidy(Lmodel_11),
+  tidy(Lmodel_12),
+  tidy(Lmodel_13),
+  tidy(Lmodel_14)
+)
+
+
+summaries
+
+
+# combine the summaries side by side
+summary_df <- bind_cols(summaries)
+
+# print the summary
+summary_df
+```
+
+
+
+# **Linearity**
+
+```{r Linearity}
+par(mfrow = c(2, 7))
+
+plot(Log_crimedataframe$Population, Log_crimedataframe$Anti.Social.Behaviour, xlab = "Log_Population" , ylab = "Log_Anti.Social.Behaviour")
+abline(Lmodel_1, col = "red", lwd = 2)
+
+plot(Log_crimedataframe$Population, Log_crimedataframe$Burglary, xlab = "Log_Population" , ylab = "Log_Burglary")
+abline(Lmodel_2, col = "red", lwd = 2)
+
+plot(Log_crimedataframe$Population, Log_crimedataframe$Robbery, xlab = "Log_Population" , ylab = "Log_Robbery")
+abline(Lmodel_3, col = "red", lwd = 2)
+
+plot(Log_crimedataframe$Population, Log_crimedataframe$Vehicle.Crimes, xlab = "Log_Population" , ylab = "Log_Vehicle.Crimes")
+abline(Lmodel_4, col = "red", lwd = 2)
+
+plot(Log_crimedataframe$Population, Log_crimedataframe$Violent.Crimes, xlab = "Log_Population" , ylab = "Log_Violent.Crimes")
+abline(Lmodel_5, col = "red", lwd = 2)
+
+plot(Log_crimedataframe$Population, Log_crimedataframe$Shoplifting, xlab = "Log_Population" , ylab = "Log_Shoplifting")
+abline(Lmodel_6, col = "red", lwd = 2)
+
+plot(Log_crimedataframe$Population, Log_crimedataframe$Criminal.Damage...Arson, xlab = "Log_Population" , ylab = "Log_Criminal.Damage...Arson")
+abline(Lmodel_7, col = "red", lwd = 2)
+
+plot(Log_crimedataframe$Population, Log_crimedataframe$Other.Theft, xlab = "Log_Population" , ylab = "Log_Other.Theft")
+abline(Lmodel_8, col = "red", lwd = 2)
+
+plot(Log_crimedataframe$Population, Log_crimedataframe$Drugs, xlab = "Log_Population" , ylab = "Log_Drugs")
+abline(Lmodel_9, col = "red", lwd = 2)
+
+plot(Log_crimedataframe$Population, Log_crimedataframe$Bike.Theft, xlab = "Log_Population" , ylab = "Log_Bike.Theft")
+abline(Lmodel_10, col = "red", lwd = 2)
+
+plot(Log_crimedataframe$Population, Log_crimedataframe$Other.Crimes, xlab = "Log_Population" , ylab = "Log_Other.Crimes")
+abline(Lmodel_11, col = "red", lwd = 2)
+
+plot(Log_crimedataframe$Population, Log_crimedataframe$Possession.of.Weapons, xlab = "Log_Population" , ylab = "Log_Possession.of.Weapons")
+abline(Lmodel_12, col = "red", lwd = 2)
+
+plot(Log_crimedataframe$Population, Log_crimedataframe$Public.Order, xlab = "Log_Population" , ylab = "Log_Public.Order")
+abline(Lmodel_13, col = "red", lwd = 2)
+
+plot(Log_crimedataframe$Population, Log_crimedataframe$Theft.From.the.Person, xlab = "Log_Population" , ylab = "Log_Theft.From.the.Person")
+abline(Lmodel_14, col = "red",lwd=2)
+
+
+```
+
+
+
+
+#**Residual Data frame**
+
+```{r Residual Plot}
+Lmodel_residuals <- data.frame(
+                          Lmodel_1$residuals,
+                          Lmodel_2$residuals,
+                          Lmodel_3$residuals,
+                          Lmodel_4$residuals,
+                          Lmodel_5$residuals,
+                          Lmodel_6$residuals,
+                          Lmodel_7$residuals,
+                          Lmodel_8$residuals,
+                          Lmodel_9$residuals,
+                          Lmodel_10$residuals,
+                          Lmodel_11$residuals,
+                          Lmodel_12$residuals,
+                          Lmodel_13$residuals,
+                          Lmodel_14$residuals
+                        )
+
+
+colnames(Lmodel_residuals)<-c(
+                        "Anti.Social.Behaviour",
+                        "Burglary",
+                        "Robbery",
+                        "Vehicle.Crimes",
+                        "Violent.Crimes",
+                        "Shoplifting",
+                        "Criminal.Damage...Arson",
+                        "Other.Theft",
+                        "Drugs",
+                        "Other.Crimes",
+                        "Bike.Theft",
+                        "Possession.of.Weapons",
+                        "Public.Order",
+                        "Theft.From.the.Person"
+                        )
+
+plot(Lmodel_residuals,cex=0.1)
+
+
+
+```
+
+
+# **Part 2A - Constant Variance**
+
+```{r}
+#Constant Variance (Homoscedasticity)
+
+cv1 <- ggplot(data.frame(x=fitted(Lmodel_1), y=resid(Lmodel_1)), aes(x=x, y=y)) +
+        geom_point() +
+        geom_smooth(method = "lm", se=FALSE, color="red") +
+        labs(title="AntiSocial Behaviour", x="Fitted Values", y="Residuals")
+
+
+cv2 <- ggplot(data.frame(x=fitted(Lmodel_2), y=resid(Lmodel_2)), aes(x=x, y=y)) +
+        geom_point() +
+        geom_smooth(method="lm", se=FALSE, color="red") +
+        labs(title="Burglary", x="Fitted Values", y="Residuals")
+
+cv3 <- ggplot(data.frame(x=fitted(Lmodel_3), y=resid(Lmodel_3)), aes(x=x, y=y)) +
+        geom_point() +
+        geom_smooth(method="lm",se=FALSE, color="red") +
+        labs(title="Robbery", x="Fitted Values", y="Residuals")
+
+cv4 <- ggplot(data.frame(x=fitted(Lmodel_4), y=resid(Lmodel_4)), aes(x=x, y=y)) +
+        geom_point() +
+        geom_smooth(method="lm",se=FALSE, color="red") +
+        labs(title="Vehicle Crime", x="Fitted Values", y="Residuals")
+
+cv5 <- ggplot(data.frame(x=fitted(Lmodel_5), y=resid(Lmodel_5)), aes(x=x, y=y)) +
+        geom_point() +
+        geom_smooth(method="lm",se=FALSE, color="red") +
+        labs(title="Violent.Crimes", x="Fitted Values", y="Residuals")
+
+cv6 <- ggplot(data.frame(x=fitted(Lmodel_6), y=resid(Lmodel_6)), aes(x=x, y=y)) +
+        geom_point() +
+        geom_smooth(method="lm",se=FALSE, color="red") +
+        labs(title="Shoplifting", x="Fitted Values", y="Residuals")
+
+cv7 <- ggplot(data.frame(x=fitted(Lmodel_7), y=resid(Lmodel_7)), aes(x=x, y=y)) +
+        geom_point() +
+        geom_smooth(method="lm",se=FALSE, color="red") +
+        labs(title="Criminal Damage & Arson", x="Fitted Values", y="Residuals")
+
+cv8 <- ggplot(data.frame(x=fitted(Lmodel_8), y=resid(Lmodel_8)), aes(x=x, y=y)) +
+        geom_point() +
+        geom_smooth(method="lm",se=FALSE, color="red") +
+        labs(title="Other Theft", x="Fitted Values", y="Residuals")
+
+cv9 <- ggplot(data.frame(x=fitted(Lmodel_9), y=resid(Lmodel_9)), aes(x=x, y=y)) +
+        geom_point() +
+        geom_smooth(method="lm",se=FALSE, color="red") +
+        labs(title="Drugs", x="Fitted Values", y="Residuals")
+
+cv10 <- ggplot(data.frame(x=fitted(Lmodel_10), y=resid(Lmodel_10)), aes(x=x, y=y)) +
+          geom_point() +
+          geom_smooth(method="lm",se=FALSE, color="red") +
+          labs(title="Other Crimes", x="Fitted Values", y="Residuals")
+
+cv11 <- ggplot(data.frame(x=fitted(Lmodel_11), y=resid(Lmodel_11)), aes(x=x, y=y)) +
+          geom_point() +
+          geom_smooth(method="lm",se=FALSE, color="red") +
+          labs(title="Bike Theft", x="Fitted Values", y="Residuals")
+
+cv12 <- ggplot(data.frame(x=fitted(Lmodel_12), y=resid(Lmodel_12)), aes(x=x, y=y)) +
+          geom_point() +
+          geom_smooth(method="lm",se=FALSE, color="red") +
+          labs(title="Possession of Weapons", x="Fitted Values", y="Residuals")
+
+cv13 <- ggplot(data.frame(x=fitted(Lmodel_13), y=resid(Lmodel_13)), aes(x=x, y=y)) +
+          geom_point() +
+          geom_smooth(method="lm",se=FALSE, color="red") +
+          labs(title="Public Order", x="Fitted Values", y="Residuals")
+
+cv14 <- ggplot(data.frame(x=fitted(Lmodel_14), y=resid(Lmodel_14)), aes(x=x, y=y)) +
+          geom_point() +
+          geom_smooth(method="lm",se=FALSE, color="red") +
+          labs(title="Theft from The Person", x="Fitted Values", y="Residuals")
+
+grid.arrange(cv1, cv2, cv3,cv4,cv5,cv6,cv7,cv8,cv9,cv10,cv11,cv12,cv13,cv14,nrow = 2,ncol=7)
+
+
+```
+
+
+# **Part 2A - Independence**
+
+```{r Independence Plot}
+
+par(mfrow = c(3,5))
+
+indp_1 <- Lmodel_residuals$Anti.Social.Behaviour 
+          plot(Lmodel_residuals$Anti.Social.Behaviour[-length(Lmodel_residuals$Anti.Social.Behaviour)],
+               Lmodel_residuals$Anti.Social.Behaviour[-1], 
+               xlab = expression(hat(epsilon)[i]), ylab = expression(hat(epsilon) [i+1]), 
+               pch = 14,cex = 0.2, main = "Anti-Social Behaviour", cex.lab =1)
+          abline(h = 0, col = "red")
+
+
+indp_2 <- Lmodel_residuals$Burglary 
+          plot(Lmodel_residuals$Burglary[-length(Lmodel_residuals$Burglary)],
+               Lmodel_residuals$Burglary[-1], 
+               xlab = expression(hat(epsilon)[i]), ylab = expression(hat(epsilon) [i+1]), 
+               pch = 14,cex = 0.2, main = "Burglary", cex.lab =1)
+          abline(h = 0, col = "red")        
+          
+          
+indp_3 <- Lmodel_residuals$Robbery 
+          plot(Lmodel_residuals$Robbery[-length(Lmodel_residuals$Robbery)],
+               Lmodel_residuals$Robbery[-1], 
+               xlab = expression(hat(epsilon)[i]), ylab = expression(hat(epsilon) [i+1]), 
+               pch = 14,cex = 0.2, main = "Robbery", cex.lab =1)
+          abline(h = 0, col = "red")
+          
+          
+indp_4 <- Lmodel_residuals$Vehicle.Crimes 
+          plot(Lmodel_residuals$Vehicle.Crimes[-length(Lmodel_residuals$Vehicle.Crimes)],
+               Lmodel_residuals$Vehicle.Crimes[-1], 
+               xlab = expression(hat(epsilon)[i]), ylab = expression(hat(epsilon) [i+1]), 
+               pch = 14,cex = 0.2, main = "Vehicle.Crimes", cex.lab =1)
+          abline(h = 0, col = "red")
+
+          
+indp_5 <- Lmodel_residuals$Violent.Crimes 
+          plot(Lmodel_residuals$Violent.Crimes[-length(Lmodel_residuals$Violent.Crimes)],
+               Lmodel_residuals$Violent.Crimes[-1], 
+               xlab = expression(hat(epsilon)[i]), ylab = expression(hat(epsilon) [i+1]), 
+               pch = 14,cex = 0.2, main = "Violent.Crimes", cex.lab =1)
+          abline(h = 0, col = "red")          
+          
+          
+indp_6 <- Lmodel_residuals$Shoplifting
+          plot(Lmodel_residuals$Shoplifting[-length(Lmodel_residuals$Shoplifting)],
+               Lmodel_residuals$Shoplifting[-1], 
+               xlab = expression(hat(epsilon)[i]), ylab = expression(hat(epsilon) [i+1]), 
+               pch = 14,cex = 0.2, main = "Shoplifting", cex.lab =1)
+          abline(h = 0, col = "red")
+
+
+indp_7 <- Lmodel_residuals$Criminal.Damage...Arson 
+          plot(Lmodel_residuals$Criminal.Damage...Arson[-length(Lmodel_residuals$Criminal.Damage...Arson)],
+               Lmodel_residuals$Criminal.Damage...Arson[-1], 
+               xlab = expression(hat(epsilon)[i]), ylab = expression(hat(epsilon) [i+1]), 
+               pch = 14,cex = 0.2, main = "Criminal.Damage...Arson", cex.lab =1)
+          abline(h = 0, col = "red")        
+          
+          
+indp_8 <- Lmodel_residuals$Other.Theft
+          plot(Lmodel_residuals$Other.Theft[-length(Lmodel_residuals$Other.Theft)],
+               Lmodel_residuals$Other.Theft[-1], 
+               xlab = expression(hat(epsilon)[i]), ylab = expression(hat(epsilon) [i+1]), 
+               pch = 14,cex = 0.2, main = "Other.Theft", cex.lab =1)
+          abline(h = 0, col = "red")
+          
+          
+indp_9 <- Lmodel_residuals$Drugs
+          plot(Lmodel_residuals$Drugs[-length(Lmodel_residuals$Drugs)],
+               Lmodel_residuals$Drugs[-1], 
+               xlab = expression(hat(epsilon)[i]), ylab = expression(hat(epsilon) [i+1]), 
+               pch = 14,cex = 0.2, main = "Drugs", cex.lab =1)
+          abline(h = 0, col = "red")
+          
+          
+indp_10 <- Lmodel_residuals$Other.Crimes
+          plot(Lmodel_residuals$Other.Crimes[-length(Lmodel_residuals$Other.Crimes)],
+               Lmodel_residuals$Other.Crimes[-1], 
+               xlab = expression(hat(epsilon)[i]), ylab = expression(hat(epsilon) [i+1]), 
+               pch = 14,cex = 0.2, main = "Other.Crimes", cex.lab =1)
+          abline(h = 0, col = "red") 
+          
+          
+indp_11 <- Lmodel_residuals$Bike.Theft
+          plot(Lmodel_residuals$Bike.Theft[-length(Lmodel_residuals$Bike.Theft)],
+               Lmodel_residuals$Bike.Theft[-1], 
+               xlab = expression(hat(epsilon)[i]), ylab = expression(hat(epsilon) [i+1]), 
+               pch = 14,cex = 0.2, main = "Bike.Theft", cex.lab =1)
+          abline(h = 0, col = "red")           
+          
+          
+indp_12 <- Lmodel_residuals$Possession.of.Weapons 
+          plot(Lmodel_residuals$Possession.of.Weapons[-length(Lmodel_residuals$Possession.of.Weapons)],
+               Lmodel_residuals$Possession.of.Weapons[-1], 
+               xlab = expression(hat(epsilon)[i]), ylab = expression(hat(epsilon) [i+1]), 
+               pch = 14,cex = 0.2, main = "Possession.of.Weapons", cex.lab =1)
+          abline(h = 0, col = "red")
+          
+          
+indp_13 <- Lmodel_residuals$Public.Order 
+          plot(Lmodel_residuals$Public.Order[-length(Lmodel_residuals$Public.Order)],
+               Lmodel_residuals$Public.Order[-1], 
+               xlab = expression(hat(epsilon)[i]), ylab = expression(hat(epsilon) [i+1]), 
+               pch = 14,cex = 0.2, main = "Public.Order", cex.lab =1)
+          abline(h = 0, col = "red")
+
+          
+indp_14 <- Lmodel_residuals$Theft.From.the.Person
+          plot(Lmodel_residuals$Theft.From.the.Person[-length(Lmodel_residuals$Theft.From.the.Person)],
+               Lmodel_residuals$Theft.From.the.Person[-1], 
+               xlab = expression(hat(epsilon)[i]), ylab = expression(hat(epsilon) [i+1]), 
+               pch = 14,cex = 0.2, main = "Theft.From.the.Person", cex.lab =1)
+          abline(h = 0, col = "red") 
+
+```
+
+
+
+# **Part 2A - Normality Distribution**
+
+```{r Normality Distribution with Density Plot}
+
+Norm_res1a <- ggplot(Lmodel_residuals, aes(x=Anti.Social.Behaviour)) +
+                    geom_density(color="red") +
+                    labs(title="Anti.Social.Behaviour", x="Residuals")
+
+Norm_res2a <- ggplot(Lmodel_residuals, aes(x=Burglary)) +
+                    geom_density(color="red") +
+                    labs(title="Burglary", x="Residuals")
+
+Norm_res3a <- ggplot(Lmodel_residuals, aes(x=Robbery)) +
+                    geom_density(color="red") +
+                    labs(title="Robbery", x="Residuals")
+
+Norm_res4a <- ggplot(Lmodel_residuals, aes(x=Vehicle.Crimes)) +
+                    geom_density(color="red") +
+                    labs(title="Vehicle.Crimes", x="Residuals")
+
+Norm_res5a <- ggplot(Lmodel_residuals, aes(x=Violent.Crimes)) +
+                    geom_density(color="red") +
+                    labs(title="Violent.Crimes", x="Residuals")
+
+Norm_res6a <- ggplot(Lmodel_residuals, aes(x=Shoplifting)) +
+                    geom_density(color="red") +
+                    labs(title="Shoplifting", x="Residuals")
+
+Norm_res7a <- ggplot(Lmodel_residuals, aes(x=Criminal.Damage...Arson)) +
+                    geom_density(color="red") +
+                    labs(title="Criminal.Damage...Arson", x="Residuals")
+
+Norm_res8a <- ggplot(Lmodel_residuals, aes(x=Other.Theft)) +
+                    geom_density(color="red") +
+                    labs(title="Other.Theft", x="Residuals")
+
+Norm_res9a <- ggplot(Lmodel_residuals, aes(x=Drugs)) +
+                    geom_density(color="red") +
+                    labs(title="Drugs", x="Residuals")
+
+Norm_res10a <- ggplot(Lmodel_residuals, aes(x=Other.Crimes)) +
+                    geom_density(color="red") +
+                    labs(title="Other.Crimes", x="Residuals")
+
+Norm_res11a <- ggplot(Lmodel_residuals, aes(x=Bike.Theft)) +
+                    geom_density(color="red") +
+                    labs(title="Bike.Theft", x="Residuals")
+
+Norm_res12a <- ggplot(Lmodel_residuals, aes(x=Possession.of.Weapons)) +
+                    geom_density(color="red") +
+                    labs(title="Possession.of.Weapons", x="Residuals")
+
+Norm_res13a <- ggplot(Lmodel_residuals, aes(x=Public.Order)) +
+                    geom_density(color="red") +
+                    labs(title="Public.Order", x="Residuals")
+
+Norm_res14a <- ggplot(Lmodel_residuals, aes(x=Theft.From.the.Person)) +
+                    geom_density(color="red") +
+                    labs(title="Theft.From.the.Person", x="Residuals")
+
+grid.arrange(Norm_res1a, Norm_res2a, Norm_res3a, Norm_res4a,Norm_res5a,Norm_res6a,Norm_res7a,Norm_res8a,Norm_res9a,Norm_res10a,Norm_res11a,Norm_res12a,Norm_res13a,Norm_res14a,nrow = 2, ncol=7)
+
+```
+
+
+
+# **Normality Distribution**
+
+```{r Normality Distribution with Density and Histogram Plot}
+# Norm_resogram with density plot
+Norm_res1 <- ggplot(Lmodel_residuals, aes(x=Anti.Social.Behaviour)) + 
+              geom_histogram(aes(y=..density..), colour="black", fill="white")+
+              geom_density(alpha=.2, fill="#800000") + #shows density curve
+              geom_vline(aes(xintercept=mean(Anti.Social.Behaviour)), #shows mean line
+              color="red", linetype="dashed", linewidth=1)+
+              labs(title="Anti.Social.Behaviour", x="Residuals")
+
+Norm_res2 <- ggplot(Lmodel_residuals, aes(x=Burglary)) + 
+          geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#800000") + #shows density curve
+          geom_vline(aes(xintercept=mean(Burglary)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          labs(title="Burglary", x="Residuals")
+
+Norm_res3 <- ggplot(Lmodel_residuals, aes(x=Robbery)) + 
+          geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#800000") + #shows density curve
+          geom_vline(aes(xintercept=mean(Robbery)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          labs(title="Robbery", x="Residuals")
+
+Norm_res4 <- ggplot(Lmodel_residuals, aes(x=Vehicle.Crimes)) + 
+          geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#800000") + #shows density curve
+          geom_vline(aes(xintercept=mean(Vehicle.Crimes)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          labs(title="Vehicle.Crimes", x="Residuals")
+
+Norm_res5 <- ggplot(Lmodel_residuals, aes(x=Violent.Crimes)) + 
+          geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#800000") + #shows density curve
+          geom_vline(aes(xintercept=mean(Violent.Crimes)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          labs(title="Violent.Crimes", x="Residuals")
+
+Norm_res6 <- ggplot(Lmodel_residuals, aes(x=Shoplifting)) + 
+          geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#800000") + #shows density curve
+          geom_vline(aes(xintercept=mean(Shoplifting)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          labs(title="Shoplifting", x="Residuals")
+
+Norm_res7 <- ggplot(Lmodel_residuals, aes(x=Criminal.Damage...Arson)) + 
+          geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#800000") + #shows density curve
+          geom_vline(aes(xintercept=mean(Criminal.Damage...Arson)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          labs(title="Criminal.Damage...Arson", x="Residuals")
+
+Norm_res8 <- ggplot(Lmodel_residuals, aes(x=Other.Theft)) + 
+          geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#800000") + #shows density curve
+          geom_vline(aes(xintercept=mean(Other.Theft)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          labs(title="Other.Theft", x="Residuals")
+
+Norm_res9 <- ggplot(Lmodel_residuals, aes(x=Drugs)) + 
+          geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#800000") + #shows density curve
+          geom_vline(aes(xintercept=mean(Drugs)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          labs(title="Drugs", x="Residuals")
+
+Norm_res10 <- ggplot(Lmodel_residuals, aes(x=Other.Crimes)) + 
+          geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#800000") + #shows density curve
+          geom_vline(aes(xintercept=mean(Other.Crimes)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          labs(title="Other.Crimes", x="Residuals")
+
+Norm_res11 <- ggplot(Lmodel_residuals, aes(x=Bike.Theft)) + 
+          geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#800000") + #shows density curve
+          geom_vline(aes(xintercept=mean(Bike.Theft)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          labs(title="Bike.Theft", x="Residuals")
+
+Norm_res12 <- ggplot(Lmodel_residuals, aes(x=Possession.of.Weapons)) + 
+          geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#800000") + #shows density curve
+          geom_vline(aes(xintercept=mean(Possession.of.Weapons)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          labs(title="Possession.of.Weapons", x="Residuals")
+
+Norm_res13 <- ggplot(Lmodel_residuals, aes(x=Public.Order)) + 
+          geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#800000") + #shows density curve
+          geom_vline(aes(xintercept=mean(Public.Order)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          labs(title="Public.Order", x="Residuals")
+
+Norm_res14 <- ggplot(Lmodel_residuals, aes(x=Theft.From.the.Person)) + 
+          geom_histogram(aes(y=..density..), colour="black", fill="white")+
+          geom_density(alpha=.2, fill="#800000") + #shows density curve
+          geom_vline(aes(xintercept=mean(Theft.From.the.Person)), #shows mean line
+          color="red", linetype="dashed", linewidth=1)+
+          labs(title="Theft.From.the.Person", x="Residuals")
+
+grid.arrange(Norm_res1, Norm_res2, Norm_res3, Norm_res4,Norm_res5,Norm_res6,Norm_res7,Norm_res8,Norm_res9,Norm_res10,Norm_res11,Norm_res12,Norm_res13,Norm_res14,nrow = 2, ncol=7)
+
+
+Norm_res1
+```
+
+
+
+
+# **Part 2B - Scatter Plot of Residuals**
+
+```{r Scatter Plot of Residuals}
+
+
+Res_1 <- ggplot(Log_crimedataframe, aes(x = Population, y =Anti.Social.Behaviour)) +
+          geom_smooth(method = "lm", se = FALSE) +
+          geom_segment(aes(xend = Population, yend = Lmodel_1$fitted.values), alpha = .3)+
+          geom_point(aes(color = abs(Lmodel_1$residuals), size = abs(Lmodel_1$residuals)))+
+          scale_color_continuous(low  = "green", high = "red") +
+          theme_bw() +
+          labs(title = "Anti Social Behaviour",  color = "Absolute Residuals", size = "Absolute Residuals")
+
+
+Res_2 <- ggplot(Log_crimedataframe, aes(x = Population, y =Burglary)) +
+          geom_smooth(method = "lm", se = FALSE) +
+          geom_segment(aes(xend = Population, yend = Lmodel_2$fitted.values), alpha = .3) +
+          geom_point(aes(color = abs(Lmodel_2$residuals), size = abs(Lmodel_2$residuals)))+
+          scale_color_continuous(low  = "green", high = "red") +
+          theme_bw() +
+          labs(title = "Burglary",  color = "Absolute Residuals", size = "Absolute Residuals")
+
+Res_3 <- ggplot(Log_crimedataframe, aes(x = Population, y =Robbery)) +
+          geom_smooth(method = "lm", se = FALSE) +
+          geom_segment(aes(xend = Population, yend = Lmodel_3$fitted.values), alpha = .3) +
+          geom_point(aes(color = abs(Lmodel_3$residuals), size = abs(Lmodel_3$residuals)))+
+          scale_color_continuous(low  = "green", high = "red") +
+          theme_bw() +
+          labs(title = "Robbery",  color = "Absolute Residuals", size = "Absolute Residuals")
+
+Res_4 <- ggplot(Log_crimedataframe, aes(x = Population, y =Vehicle.Crimes)) +
+          geom_smooth(method = "lm", se = FALSE) +
+          geom_segment(aes(xend = Population, yend = Lmodel_4$fitted.values), alpha = .3) +
+          geom_point(aes(color = abs(Lmodel_4$residuals), size = abs(Lmodel_4$residuals)))+
+          scale_color_continuous(low  = "green", high = "red") +
+          theme_bw() +
+          labs(title = "Vehicle.Crimes",  color = "Absolute Residuals", size = "Absolute Residuals")
+
+Res_5 <- ggplot(Log_crimedataframe, aes(x = Population, y =Violent.Crimes)) +
+          geom_smooth(method = "lm", se = FALSE) +
+          geom_segment(aes(xend = Population, yend = Lmodel_5$fitted.values), alpha = .3) +
+          geom_point(aes(color = abs(Lmodel_5$residuals), size = abs(Lmodel_5$residuals)))+
+          scale_color_continuous(low  = "green", high = "red") +
+          theme_bw() +
+          labs(title = "Violent.Crimes",  color = "Absolute Residuals", size = "Absolute Residuals")
+
+Res_6 <- ggplot(Log_crimedataframe, aes(x = Population, y =Shoplifting)) +
+          geom_smooth(method = "lm", se = FALSE) +
+          geom_segment(aes(xend = Population, yend = Lmodel_6$fitted.values), alpha = .3) +
+          geom_point(aes(color = abs(Lmodel_6$residuals), size = abs(Lmodel_6$residuals)))+
+          scale_color_continuous(low  = "green", high = "red") +
+          theme_bw() +
+          labs(title = "Shoplifting",  color = "Absolute Residuals", size = "Absolute Residuals")
+
+Res_7 <- ggplot(Log_crimedataframe, aes(x = Population, y =Criminal.Damage...Arson)) +
+          geom_smooth(method = "lm", se = FALSE) +
+          geom_segment(aes(xend = Population, yend = Lmodel_7$fitted.values), alpha = .3) +
+          geom_point(aes(color = abs(Lmodel_7$residuals), size = abs(Lmodel_7$residuals)))+
+          scale_color_continuous(low  = "green", high = "red") +
+          theme_bw() +
+          labs(title = "Criminal.Damage...Arson",  color = "Absolute Residuals", size = "Absolute Residuals")
+
+Res_8 <- ggplot(Log_crimedataframe, aes(x = Population, y =Other.Theft)) +
+          geom_smooth(method = "lm", se = FALSE) +
+          geom_segment(aes(xend = Population, yend = Lmodel_8$fitted.values), alpha = .3) +
+          geom_point(aes(color = abs(Lmodel_8$residuals), size = abs(Lmodel_8$residuals)))+
+          scale_color_continuous(low  = "green", high = "red") +
+          theme_bw() +
+          labs(title = "Other.Theft",  color = "Absolute Residuals", size = "Absolute Residuals")
+
+Res_9 <- ggplot(Log_crimedataframe, aes(x = Population, y =Drugs)) +
+          geom_smooth(method = "lm", se = FALSE) +
+          geom_segment(aes(xend = Population, yend = Lmodel_9$fitted.values), alpha = .3) +
+          geom_point(aes(color = abs(Lmodel_9$residuals), size = abs(Lmodel_9$residuals)))+
+          scale_color_continuous(low  = "green", high = "red") +
+          theme_bw() +
+          labs(title = "Drugs",  color = "Absolute Residuals", size = "Absolute Residuals")
+
+Res_10 <- ggplot(Log_crimedataframe, aes(x = Population, y =Other.Crimes)) +
+          geom_smooth(method = "lm", se = FALSE) +
+          geom_segment(aes(xend = Population, yend = Lmodel_11$fitted.values), alpha = .3) +
+          geom_point(aes(color = abs(Lmodel_11$residuals), size = abs(Lmodel_11$residuals)))+
+          scale_color_continuous(low  = "green", high = "red") +
+          theme_bw() +
+          labs(title = "Other.Crimes",  color = "Absolute Residuals", size = "Absolute Residuals")
+
+Res_11 <- ggplot(Log_crimedataframe, aes(x = Population, y =Bike.Theft)) +
+          geom_smooth(method = "lm", se = FALSE) +
+          geom_segment(aes(xend = Population, yend = Lmodel_10$fitted.values), alpha = .3) +
+          geom_point(aes(color = abs(Lmodel_10$residuals), size = abs(Lmodel_10$residuals)))+
+          scale_color_continuous(low  = "green", high = "red") +
+          theme_bw() +
+          labs(title = "Bike.Theft",  color = "Absolute Residuals", size = "Absolute Residuals")
+
+Res_12 <- ggplot(Log_crimedataframe, aes(x = Population, y =Possession.of.Weapons)) +
+          geom_smooth(method = "lm", se = FALSE) +
+          geom_segment(aes(xend = Population, yend = Lmodel_12$fitted.values), alpha = .3) +
+          geom_point(aes(color = abs(Lmodel_12$residuals), size = abs(Lmodel_12$residuals)))+
+          scale_color_continuous(low  = "green", high = "red") +
+          theme_bw() +
+          labs(title = "Possession.of.Weapons",  color = "Absolute Residuals", size = "Absolute Residuals")
+
+Res_13 <- ggplot(Log_crimedataframe, aes(x = Population, y =Public.Order)) +
+          geom_smooth(method = "lm", se = FALSE) +
+          geom_segment(aes(xend = Population, yend = Lmodel_13$fitted.values), alpha = .3) +
+          geom_point(aes(color = abs(Lmodel_13$residuals), size = abs(Lmodel_13$residuals)))+
+          scale_color_continuous(low  = "green", high = "red") +
+          theme_bw() +
+          labs(title = "Public.Order",  color = "Absolute Residuals", size = "Absolute Residuals")
+
+Res_14 <- ggplot(Log_crimedataframe, aes(x = Population, y =Theft.From.the.Person)) +
+          geom_smooth(method = "lm", se = FALSE) +
+          geom_segment(aes(xend = Population, yend = Lmodel_14$fitted.values), alpha = .5) +
+          geom_point(aes(color = abs(Lmodel_14$residuals), size = abs(Lmodel_14$residuals)))+
+          scale_color_continuous(low  = "green", high = "red") +
+          theme_bw() +
+          labs(title = "Theft.From.the.Person",  color = "Absolute Residuals", size = "Absolute Residuals")
+
+```
+
+
+```{r}
+Res_1 
+Res_2
+Res_3
+Res_4
+Res_5
+Res_6
+Res_7
+Res_8
+Res_9
+Res_10
+Res_11
+Res_12
+Res_13
+Res_14
+
+
+
+
+```
+
+
+
+# **Part 2B - Heatmap Plot of Residuals**
+
+
+```{r Heatmap Plot of Residuals}
+# Correlation Matrix
+correlation_matrix <- cor(Lmodel_residuals)
+correlation_matrix
+
+
+#Heatmap Plot
+      ggplot(melt(correlation_matrix), aes(x=Var1, y=Var2, fill=value), width = unit(40, "in"), height = unit(50, "in", dpi=300)) +
+        geom_tile() +
+        scale_fill_gradient2(low="green", mid="yellow", high="red", midpoint=0) +
+        geom_text(aes(label=round(value, 1)), color="black") +  # Add correlation value to each box
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        labs(title="Correlation Heatmap of Residuals", x="", y="", fill="Correlation")
+      
+      
+     
+# Plot heatmap 
+heatmap.2(cor(Lmodel_residuals), col = colorRampPalette(c("red", "yellow", "darkgreen"))(256), main = "Correlation Heatmap of Residuals",bxlab = "", ylab = "")
+
+
+
+```
+
+
+
+
+# **Part 2C - Hierarchical Clustering**
+
+
+```{r}
+
+# standardize the data
+std_residuals <- scale(Lmodel_residuals) 
+std_residuals <- as.data.frame(std_residuals)
+
+
+#distance matrix 
+dist_mat <- dist(std_residuals)
+
+
+#perform hierarchical clustering on the distance matrix.
+res.hc <- hclust(dist_mat, method = "complete")
+res.hc
+
+#Dendrogram
+fviz_dend(x = res.hc, cex =0.8, lwd = 0.8, k = 3, color_labels_by_k = TRUE, rect = TRUE, rect_border = "jco")
+
+
+#optimal number of clusters
+fviz_nbclust(std_residuals, FUN = hcut, method = "wss") + 
+            theme_minimal() + 
+            geom_vline(xintercept = 3, linetype = 2) +
+            labs(subtitle = "Elbow method") # add subtitle
+
+#Cut tree into K groups
+residuals_cluster <- cutree(res.hc, k=3)
+
+
+#Create Cluster Plot
+fviz_cluster (list(data = std_residuals, cluster = residuals_cluster))
+
+#outliers
+outliers <- which(res.hc$height > 5)
+              if (length(outliers) > 0) {
+                   cat("Outliers identified at the following indices:", outliers, "\n")
+                    } else {
+                      cat("No outliers identified.\n")
+                    }
+
+outliers <- as.data.frame(outliers)
+outliers
+
+
+```
+
+
+
+
+
+
+```{r}
+library(cluster)
+
+silhouette_values <- lapply(2:6, function(k) {
+ clustemassignments <- cutree(res.hc, k = k)
+ silhouette(clustemassignments, dist_mat)
+})
+
+#Visualize the silhou # For k = 3
+fviz_silhouette(silhouette_values[[2]])
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# **Part 3 – Independent Evaluation and Commentary**
+
+
+# **Exploratory Data Analysis**
+
+
+
+
+
+
+
+```{r}
+###Creating a map
+
+# Load necessary packages
+#install.packages("sf")
+library(sf)
+library(ggplot2)
+
+
+# Import shapefile data
+Shpdata <- st_read("shapefiles2")
+
+head(Shpdata)
+
+# Import crimedataframe
+MapData <- read.csv('AssessmentCrimeData.csv')
+
+#Create a column to calculate total number of crimes in the dataset
+MapData$Total_Crime <- rowSums(MapData[,c("Anti.Social.Behaviour","Other.Crimes","Possession.of.Weapons", "Burglary","Robbery","Vehicle.Crimes","Violent.Crimes","Shoplifting","Other.Theft","Drugs","Bike.Theft","Public.Order","Theft.From.the.Person","Criminal.Damage...Arson")])
+
+head(MapData)
+
+
+MapData <- MapData %>% 
+        rename("LSOA11CD" = "LSOA")
+
+head(MapData)
+
+# merge the shapefile data and the map data by a common variable
+Shp_df <- merge(Shpdata, MapData, by = "LSOA11CD")
+
+view(Shp_df)
+
+
+#add variables to the shapefile. for instance crime data
+
+Shp_df$"LSOA Code"<-MapData$LSOA11CD
+Shp_df$"Region Name"<-MapData$LSOA11NM
+Shp_df$"Land Area"<- MapData$Land.Area.in.Hectares
+Shp_df$"Population"<-MapData$Population
+Shp_df$"log10_Population_Density"<- log10(MapData$Population/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(AntiSocialBehaviour_Density)"<- log10(MapData$Anti.Social.Behaviour/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(Burglary_Density)"<- log10(MapData$Burglary/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(Robbery_Density)"<- log10(MapData$Robbery/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(VehicleCrimes_Density)"<- log10(MapData$Vehicle.Crimes/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(ViolentCrimes_Density)"<- log10(MapData$Violent.Crimes/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(Shoplifting_Density)"<- log10(MapData$Shoplifting/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(CriminalDamageArson_Density)"<- log10(MapData$Criminal.Damage...Arson/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(OtherTheft_Density)"<- log10(MapData$Other.Theft/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(Drugs_Density)"<- log10(MapData$Drugs/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(OtherCrimes_Density)"<- log10(MapData$Other.Crimes/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(BikeTheft_Density)"<- log10(MapData$Bike.Theft/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(PossessionOfWeapons_Density)"<- log10(MapData$Possession.of.Weapons/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(PublicOrder_Density)"<- log10(MapData$Public.Order/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(TheftFromThePerson_Density)"<- log10(MapData$Theft.From.the.Person/MapData$Land.Area.in.Hectares)
+Shp_df$"log10(TotalCrimes_Density)"<- log10(MapData$Total_Crime/MapData$Land.Area.in.Hectares)
+
+#View
+view(Shp_df)
+view(MapData)
+
+
+```
+
+
+
+```{r interactive maps and visualize}
+
+#Population Density
+tm_shape(Shp_df) +
+  tm_polygons("log10_Population_Density", style = "quantile", palette = "Reds", popup.vars = c("LSOA11NM","log10_Population_Density","Total_Crime","Land Area")) +
+tm_layout(title = "Derbyshire Population Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+  tmap_mode("view")
+```
+
+
+
+```{r Maps Plots for Crime Data}
+
+my_palette <- colorRampPalette(c("#A16928","#bd925a","#d6bd8d","#edeac2","#b5c8b8","#79a7ac","#2887a1"))(n = 5)
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(AntiSocialBehaviour_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(AntiSocialBehaviour_Density)")) +
+  tm_layout(title = "Anti Social Behaviour Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(Burglary_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(Burglary_Density)")) +
+  tm_layout(title = "Burglary Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(Robbery_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(Robbery_Density)")) +
+  tm_layout(title = "Robbery Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(VehicleCrimes_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(VehicleCrimes_Density)")) +
+  tm_layout(title = "Vehicle Crimes Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(ViolentCrimes_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(ViolentCrimes_Density)")) +
+  tm_layout(title = "Violent Crimes Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(Shoplifting_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(Shoplifting_Density)")) +
+  tm_layout(title = "Shoplifting Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(CriminalDamageArson_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(CriminalDamageArson_Density)")) +
+  tm_layout(title = "Criminal Damage....Arson Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(OtherTheft_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(OtherTheft_Density)")) +
+  tm_layout(title = "Other Theft Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(Drugs_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(Drugs_Density)")) +
+  tm_layout(title = "Drugs Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(OtherCrimes_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(OtherCrimes_Density)")) +
+  tm_layout(title = "Other Crimes Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(BikeTheft_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(BikeTheft_Density)")) +
+  tm_layout(title = "Bike Theft Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(PossessionOfWeapons_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(PossessionOfWeapons_Density)")) +
+  tm_layout(title = "Possession Of Weapons Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(PublicOrder_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(PublicOrder_Density)")) +
+  tm_layout(title = "Public Order Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(TheftFromThePerson_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(TheftFromThePerson_Density)")) +
+  tm_layout(title = "Theft From The Person Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+
+tm_shape(Shp_df  ) +
+  tm_polygons("log10(TotalCrimes_Density)", style = "quantile", palette = my_palette, popup.vars = c("LSOA11NM", "log10(TotalCrimes_Density)")) +
+  tm_layout(title = "Total Crimes Density",
+            legend.outside = TRUE, 
+            legend.position = c("right", "bottom"),
+            legend.title.size = 1,
+            legend.title.fontface = "bold",
+            legend.bg.color = "white") +
+  tm_borders(lwd = 1)+
+tmap_mode("view")
+
+
+
+
+
+
+```
+
+
+
+```{r Regional Distribution}
+
+crime.variables = subset(crimedataframe, select = -c(LSOA, City,city.code, Population,Land.Area.in.Hectares))
+
+
+ggplot(crimedataframe, aes(x = City)) + 
+  geom_bar(fill = "green",
+          color = "black") +
+  labs(x = "City",
+       y = "Frequency",
+       title = "Frequency of City")+
+  coord_flip()
+
+
+```
+
+Derby has the highest number of records in the data.
+
+
+
+
+## **City by Population**
+```{r Plot City by Population}
+# Create a summary data frame with total population by city
+population.by.city <- aggregate(crimedataframe$Population, by = list(crimedataframe$City), FUN = sum)
+names(population.by.city) <- c("City", "Total.Population")
+
+#Visualize the table 
+population.by.city
+
+# Sort the data frame in descending order of population
+population.by.city <- population.by.city[order(-population.by.city$Total.Population),]
+
+# Create a vector of colors to use for the bars
+city.colors <- c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02", "#a6761d", "#666666", "#800000")
+
+# Set plot size
+options(repr.plot.width = 15, repr.plot.height = 10)
+
+# Plot a bar chart with cities on x-axis and total population on y-axis
+ggplot(population.by.city, aes(x = reorder(City, -Total.Population), y = Total.Population, fill = City)) + 
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = city.colors) +
+  #coord_flip()+
+  labs(x = "City", y = "Total Population") +
+  geom_text(aes(label = Total.Population), vjust = -0.5, size = 3.5) +
+  ggtitle("Total Population by City (Descending Order)") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 10))
+
+
+# Plot a bar chart with cities on x-axis and total population on y-axis
+ggplot(population.by.city, aes(x = reorder(City, Total.Population), y = Total.Population)) + 
+  geom_bar(stat = "identity", fill = "darkred") +
+  coord_flip()+
+  labs(x = "City", y = "Total Population") +
+  geom_text(aes(label = Total.Population), vjust = 0.5, hjust = -0.09, size = 3.5) +
+  ggtitle("Total Population by City (Descending Order)") +
+  theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 10))
+
+
+```
+
+
+Derby has more population compared to other cities
+
+
+
+
+## **Sum of Crime Types**
+```{r Sum of Crimes}
+sum.crime <- crimedataframe %>%
+               select(-c(LSOA, City, city.code, Population, Land.Area.in.Hectares, Total.Crime)) %>%
+               summarise_all(sum)
+
+#Visualize Table
+sum.crime
+
+# define colors for the Crime
+crime.colors <- c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02", "#a6761d", "#666666", "#800000", "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f")
+
+
+ggplot(data = gather(sum.crime, key = "crime_type", value = "count"), 
+       aes(x = reorder(crime_type, count), y = count)) +
+  #aes(x = reorder(crime_type, count), y = count, fill= crime_type)) +
+  geom_bar(stat = "identity") +
+   #scale_fill_manual(values = crime.colors) +
+  coord_flip() +
+  theme(axis.text.y = element_text(size = 12, hjust = 1), 
+        axis.title.x = element_text(angle = 0,size = 8, hjust = 0)) +
+  ggtitle("Sum of Crimes") +
+  xlab("Crime") +
+  ylab("Frequency")+
+  geom_text(aes(label = count), angle = 0, vjust = 0.5, hjust = -0.1,  size = 6.5)
+```
+
+Anti.Social.Behaviour and violent crimes have the highest number of records  
+
+
+
+
+## **Total Crime by City**
+```{r Plot Total Crime by City}
+# create a named vector of colors
+city.colors <- c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02", "#a6761d", "#666666", "#800000")
+names(city.colors) <- unique(crimedataframe$City)
+
+# plot the treemap with custom colors
+treemap(crimedataframe, index = "City", vSize = "Total.Crime", title = "Total Crime by City", palette = city.colors)
+
+```
+
+Derby has the highest Number of crime
+
+
+
+## **Crime Type by City**
+```{r Crime Type by City}
+# create a new data frame with only the columns we need
+crime.by.city <- crimedataframe[, c("City", "Anti.Social.Behaviour", "Burglary", "Robbery", 
+                                    "Vehicle.Crimes", "Violent.Crimes", "Shoplifting", 
+                                    "Criminal.Damage...Arson", "Other.Theft", "Drugs", 
+                                    "Other.Crimes", "Bike.Theft", "Possession.of.Weapons", 
+                                    "Public.Order", "Theft.From.the.Person")]
+#visualize Table 
+crime.by.city
+
+# Transpose data frame from wide to long format
+crime_by.city.long <- reshape2::melt(crime.by.city, id.vars = "City", variable.name = "crime_type", 
+                                     value.name = "Count")
+#Visualize Transformation
+crime_by.city.long
+
+# create the stacked bar chart
+ggplot(crime_by.city.long, aes(x = City, y = Count, fill = crime_type)) + 
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values = crime.colors) +
+  labs(x = "City", y = "Count", title = "Count of Crime Type by City") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+
+```
+
+In derby, Violent Crime and Anti Social Behaviour are the most committed crime within the year. 
+
+
+
+## **Max Value of Crime Type**
+```{r}
+# create a dataframe with the maximum number of crimes for each type
+max_crime <- data.frame(Group.1=colnames(crimedataframe[,6:19]), MaxValue=apply(crimedataframe[,6:19], 2, max))
+
+# create a bar plot using ggplot2
+ggplot(max_crime, aes(x = Group.1, y = MaxValue, fill = Group.1)) +
+  geom_bar(stat="identity") +
+  geom_text(aes(label = MaxValue, y = MaxValue + 20), vjust = -0.5) +
+  labs(title = "MaxValue per Crime Type", x = "Crime Type", y = "Number of Crimes") +
+  #scale_fill_brewer(palette="Set1") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5), axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+Anti Social Behaviour and Violent Crimes have a max value above 1000.
+
+
+
+# **Correlation Matrix**
+
+The following steps will be taken:\
+- Identify the Research Question.\
+- Change City to numerical variables\
+- Convert all variables to lists\
+- Bind the lists into a variable name\
+- Plot Correlation\
+
+**Research Question:** Are any of the variables correlated?\
+
+### Result Interpretation:
+
+-   Strong negative correlation (-1) means that whenever x rises, y falls.\
+-   0 indicates no correlation exists between the two variables (x and y).\
+-   A strong positive correlation of 1 means that y rises as x does.\
+
+All columns are numerical except LSOA, City and city.code which are categorical.\
+
+For this test, City will be changed to numerical.
+
+**For City:**\
+- Derby becomes 1\
+- Amber Valley becomes 2\
+- Erewash becomes 3\
+- South Derbyshire becomes 4\
+- Chesterfield becomes 5\
+- North East Derbyshire becomes 6\
+- High Peak becomes 7\
+- Bolsover becomes 8\
+- Derbyshire Dales becomes 9\
+
+```{r Correlation, warning=FALSE}
+## Make a copy of the data
+crimedataframe.copy = subset(crimedataframe, select = -c(LSOA, city.code, Total.Crime))
+head(crimedataframe.copy)
+
+## Replacing values for City
+crimedataframe.copy['City'][crimedataframe.copy['City'] == 'Derby'] <- 1
+crimedataframe.copy['City'][crimedataframe.copy['City'] == 'Amber Valley'] <- 2
+crimedataframe.copy['City'][crimedataframe.copy['City'] == 'Erewash'] <- 3
+crimedataframe.copy['City'][crimedataframe.copy['City'] == 'South Derbyshire'] <- 4
+crimedataframe.copy['City'][crimedataframe.copy['City'] == 'Chesterfield'] <- 5
+crimedataframe.copy['City'][crimedataframe.copy['City'] == 'North East Derbyshire'] <- 6
+crimedataframe.copy['City'][crimedataframe.copy['City'] == 'High Peak'] <- 7
+crimedataframe.copy['City'][crimedataframe.copy['City'] == 'Bolsover'] <- 8
+crimedataframe.copy['City'][crimedataframe.copy['City'] == 'Derbyshire Dales'] <- 9
+
+## Print Changes
+head(crimedataframe.copy)
+
+# Display unique values in the "City" column
+unique(crimedataframe.copy$City)
+```
+
+
+
+```{r}
+## Converting variables to lists
+City <- as.integer(c(crimedataframe.copy$City))
+Population <- c(crimedataframe.copy$Population)
+Land.Area.in.Hectares <- c(crimedataframe.copy$Land.Area.in.Hectares)
+Anti.Social.Behaviour <- c(crimedataframe.copy$Anti.Social.Behaviour)
+Burglary <- c(crimedataframe.copy$Burglary)
+Robbery <- c(crimedataframe.copy$Robbery)
+Vehicle.Crimes <- c(crimedataframe.copy$Vehicle.Crimes)
+Violent.Crimes <- c(crimedataframe.copy$Violent.Crimes)
+Shoplifting <- c(crimedataframe.copy$Shoplifting)
+Criminal.Damage...Arson <- c(crimedataframe.copy$Criminal.Damage...Arson)
+Other.Theft <- c(crimedataframe.copy$Other.Theft)
+Drugs <- c(crimedataframe.copy$Drugs)
+Other.Crimes <- c(crimedataframe.copy$Other.Crimes)
+Bike.Theft <- c(crimedataframe.copy$Bike.Theft)
+Possession.of.Weapons <- c(crimedataframe.copy$Possession.of.Weapons)
+Public.Order <- c(crimedataframe.copy$Public.Order)
+Theft.From.the.Person <- c(crimedataframe.copy$Theft.From.the.Person)
+Total.Crime <- c(crimedataframe.copy$Total.Crime)
+
+
+## binding the variables
+crime_cor <- cbind(City,Population,Land.Area.in.Hectares,Anti.Social.Behaviour,Burglary,
+                   Robbery,Vehicle.Crimes,Violent.Crimes,Shoplifting,Criminal.Damage...Arson,Other.Theft,
+                   Drugs,Other.Crimes,Bike.Theft,Possession.of.Weapons,Public.Order,Theft.From.the.Person,Total.Crime)
+
+head(crime_cor)
+```
+
+```{r Crime Correlation Matrix}
+
+# Calculate correlation matrix and round to 2 decimal places
+crime_matrix <- round(cor(crime_cor),2)
+
+#Correlation matrix
+crime_matrix
+
+# Correlation plot
+corrplot(crime_matrix,method = "circle")
+```
+
+
+
+```{r Correlation Matrix}
+# Transform the correlation matrix into a long format data frame
+crime.cor.transform <- as.data.frame(as.table(crime_matrix))
+names(crime.cor.transform) <- c("VariableA", "VariableB", "value")
+
+crime.cor.transform
+
+# Correlation plot with heatmap
+ggplot(crime.cor.transform, aes(x=VariableA, y=VariableB, fill=value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "red", mid="yellow", high="green", midpoint=0) +
+  geom_text(aes(label=round(value, 1)), color="black") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title="Correlation Plot", fill="Range")
+```
+From the plot, City and Land Area barely correlates with any crime type.
+
+
+
+
+
+
+```{r}
+#Total Crimes by Type of crime 
+
+# Create a new data frame with the total number of crimes in each category
+crime_counts <- crimedataframe %>%
+  summarise(across(Anti.Social.Behaviour:Total.Crime, sum))
+
+# Convert the data frame to long format
+crime_counts_long <- pivot_longer(crime_counts, cols = Anti.Social.Behaviour:Other.Crimes,
+                                  names_to = "crime_type", values_to = "count")
+
+# Reorder the crime types by count of crimes
+crime_counts_long <- crime_counts_long %>%
+  mutate(crime_type = reorder(crime_type, -count))
+
+crime_counts_long
+
+# Create a bar plot of the total number of crimes in each category, colored by type of crime
+ggplot(crime_counts_long, aes(x = crime_type, y = count, fill = crime_type)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Crime Type", y = "Total Number of Crimes", title = "Total Crimes by Type") +
+  theme(axis.text.x = element_text(angle=45,hjust=1))
+
+```
+
+
+
+
+
+
+
+
+
+```{r}
+library(ggplot2)
+
+# Subset the dataset to include only the relevant columns
+Anti.Social.Behaviour_data <- crimedataframe[, c("City", "Anti.Social.Behaviour")]
+
+# Sort the data in descending order of Bike Theft
+Anti.Social.Behaviour_data <- Anti.Social.Behaviour_data[order(Anti.Social.Behaviour_data$`Anti.Social.Behaviour`, decreasing = TRUE), ]
+
+# Create the pie chart
+ggplot(data = Anti.Social.Behaviour_data, aes(x = "", y = `Anti.Social.Behaviour`, fill = City)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  labs(title = "Distribution of Anti.Social.Behaviour Crime in Different Cities") +
+  scale_fill_discrete(name = "City")
+
+
+# Subset the dataset to include only the relevant columns
+Violent.Crimes_data <- crimedataframe[, c("City", "Violent.Crimes")]
+
+# Sort the data in descending order
+Violent.Crimes_data <- Violent.Crimes_data[order(Violent.Crimes_data$`Violent.Crimes`, decreasing = TRUE), ]
+
+
+# Define custom colors
+custom_colors <- c("#FF0000", "#00FF00", "#0000FF", "#FF00FF", "#FFFF00", "#00FFFF","#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02")
+
+# Create the pie chart
+ggplot(data = Violent.Crimes_data, aes(x = "", y = `Violent.Crimes`, fill = City)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  labs(title = "Distribution of Violent Crimes Different Cities") +
+  scale_fill_manual(values = custom_colors)+
+  geom_text(aes(label = `Violent.Crimes`), position = position_stack(vjust = 0.5))
+
+```
+
+
+
+
+```{r}
+# Subset the dataset to include only the relevant columns
+Violent.Crimes_data <- crimedataframe[, c("City", "Violent.Crimes")]
+
+# Sort the data in descending order
+Violent.Crimes_data <- Violent.Crimes_data[order(Violent.Crimes_data$`Violent.Crimes`, decreasing = TRUE), ]
+
+
+# Define custom colors
+custom_colors <- c("#FF0000", "#00FF00", "#0000FF", "#FF00FF", "#FFFF00", "#00FFFF")
+
+
+# Create the pie chart
+ggplot(data = Violent.Crimes_data, aes(x = "", y = `Violent.Crimes`, fill = City)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  labs(title = "Distribution of Violent.Crimes Crime in Different Cities") +
+  scale_fill_discrete(name = "City")
+
+
+
+
+
+
+
+
+library(ggplot2)
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r Correlation Matrix}
+# Select the crime columns
+cols <- c("Population", "Anti.Social.Behaviour", "Burglary", "Robbery",
+          "Vehicle.Crimes", "Violent.Crimes", "Shoplifting", 
+          "Criminal.Damage...Arson", "Other.Theft", "Drugs",
+          "Other.Crimes", "Bike.Theft", "Possession.of.Weapons", 
+          "Public.Order", "Theft.From.the.Person")
+
+# Compute correlation matrix
+crime.corr <- cor(crimedataframe[cols], use = "complete.obs")
+
+# Transform the correlation matrix into a long format data frame
+crime.corr.transform <- as.data.frame(as.table(crime.corr))
+names(crime.corr.transform) <- c("VariableA", "VariableB", "value")
+
+crime.corr.transform
+
+# Correlation plot with heatmap
+ggplot(crime.corr.transform, aes(x=VariableA, y=VariableB, fill=value), width = unit(40, "in"), height = unit(50, "in", dpi=300)) +
+  geom_tile() +
+  scale_fill_gradient2(low="orange", mid="red", high="green", midpoint=0) +
+  geom_text(aes(label=round(value, 1)), color="black") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title="Crime Type Correlation", x="", y="", fill="Range")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r Plot City by Population}
+# Create a summary data frame with total population by city
+crime.by.city <- aggregate(crimedataframe$Total.Crime, by = list(crimedataframe$City), FUN = sum)
+names(crime.by.city) <- c("City", "Total.Crime")
+
+#Visualize the table 
+crime.by.city
+
+# Sort the data frame in descending order of population
+crime.by.city <- crime.by.city[order(-crime.by.city$Total.Crime),]
+
+# Create a vector of colors to use for the bars
+city.colors <- c("#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#e6ab02", "#a6761d", "#666666", "#800000")
+
+# Set plot size
+options(repr.plot.width = 15, repr.plot.height = 10)
+
+# Plot a bar chart with cities on x-axis and total population on y-axis
+ggplot(crime.by.city, aes(x = reorder(City, -Total.Crime), y = Total.Crime, fill = City)) + 
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = city.colors) +
+  #coord_flip()+
+  labs(x = "City", y = "Total Crime") +
+  geom_text(aes(label = Total.Crime), vjust = -0.5, size = 3.5) +
+  ggtitle("Total Population by City (Descending Order)") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 10))
+
+
+# Plot a bar chart with cities on x-axis and total population on y-axis
+ggplot(crime.by.city, aes(x = reorder(City, Total.Crime), y = Total.Crime)) + 
+  geom_bar(stat = "identity", fill = "darkred") +
+  coord_flip()+
+  labs(x = "City", y = "Total crime") +
+  geom_text(aes(label = Total.Crime), vjust = 0.5, hjust = -0.09, size = 3.5) +
+  ggtitle("Total Population by City (Descending Order)") +
+  theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 10))
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
