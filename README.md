@@ -71,7 +71,7 @@ Figure 1: Density Plot of the Crime Data
 </p>
 
  
-This phenomena of the data led to the decision of log transforming the data. Log transformation is a method used to reduce the skewness of the data. It helps to achieve a much more closer bell curve as shown below (Htoon, 2020):
+This phenomenon of the data led to the decision to log transform the data. Log transformation is a method used to reduce the skewness of the data. It helps to achieve a much closer bell curve as shown below (Htoon, 2020):
 
 
 <p align="center">
@@ -89,7 +89,7 @@ Figure 2: Density Plot of the Log Transformed Crime Data
 The positive slope coefficient (β1) for each crime type shows a correlation between population and crimes. The intercept for each model is negative, indicating that crime rates remain lower than the area's normal rate even with zero population. The models fit the data well with R-squared values ranging from 0.5972 to 0.8772, accounting for 59.72% to 87.72% of the variation in dependent variables.
 
 #### Linearity: 
-Linear regression assumes a linear relationship between the dependent and independent variables. If the relationship is nonlinear, using a linear regression model may produce unreliable results. For the models, the assumption of linearity holds.
+Linear regression assumes a linear relationship between the dependent and independent variables. A linear regression model may produce unreliable results if the relationship is nonlinear. For the models, the assumption of linearity holds.
 
 <p align="center">
 Figure 3: Linearity Plot of the Models
