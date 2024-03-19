@@ -9,7 +9,7 @@ This project aims to analyze the crime data set from different regions in Derbys
 
 
 ### Dataset Description
-The provided dataset includes data on the number of criminal incidents that have been reported in various Lower Layer Super Output Areas (LSOAs) of Derbyshire. The dataset contains 642 observations and 18 variables. 
+The provided dataset includes data on the number of criminal incidents reported in various Lower Layer Super Output Areas (LSOAs) of Derbyshire. The dataset contains 642 observations and 18 variables. 
 
 ## EDA
 
@@ -60,7 +60,7 @@ Figure 2: Map Plot of Population Density
 ## Linear Regression
 ### Summary Statistics - Normality Distribution
 
-Skewness is a measure used to fact check how the data deviates from a normal distribution (Gawali, 2021). The tail of the distributions as shown in the Density plot below are longer on the positive side which is indicative that the crime variables are positively skewed.
+Skewness is a measure used to fact-check how the data deviates from a normal distribution (Gawali, 2021). The tail of the distributions as shown in the Density plot below are longer on the positive side, indicating that the crime variables are positively skewed.
 
 <p align="center">
 Figure 1: Density Plot of the Crime Data
@@ -101,7 +101,7 @@ Figure 3: Linearity Plot of the Models
 
 
 #### Correlation:
-The residuals are lowly correlated especially at the bottom left of the plot while the top right has stronger correlation between variables. Anti-social behaviour and Public Order have a correlation of 0.8. This is the same with the pairs of Anti-social behaviour and Violent Crimes, Anti-social behaviour, and Criminal Damage Arson
+The residuals are lowly correlated especially at the bottom left of the plot while the top right has a stronger correlation between variables. Anti-social behaviour and Public Order correlate at 0.8. This is the same with the pairs of Anti-social behaviour and Violent Crimes, Anti-social behaviour, and Criminal Damage Arson
 
 <p align="center">
 Figure 4: Correlation Heatmap of Residuals
@@ -113,7 +113,7 @@ Figure 4: Correlation Heatmap of Residuals
 
 
 #### Hierarchical Clustering:
-A dendrogram is a diagram that shows the outcomes of hierarchical clustering. It helps sort related objects into clusters based on their similarity. The relationships between the clusters are shown graphically in the dendrogram. In Figure 5, the data is in 3 clusters colored red, green, and blue.
+A dendrogram is a diagram that shows the outcomes of hierarchical clustering. It helps sort related objects into clusters based on their similarity. The relationships between the clusters are shown graphically in the dendrogram. In Figure 5, the data is in 3 clusters coloured red, green, and blue.
 
 
    
